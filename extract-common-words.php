@@ -20,7 +20,7 @@ function crawl_page($url)
     $hrefs = [];
 
     $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+    curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
     curl_setopt($ch, CURLOPT_HEADER, 1);
 	$response = curl_exec($ch);
@@ -46,8 +46,9 @@ function crawl_page($url)
     $plainText = $dom->textContent;
     $plainText = clean( $plainText );
     $words = explode( ' ', $plainText );
-    $words = array_filter($words, function($value) {
-        if( $value != '' )
+    $excluded_words = explode( ',', getenv('EXCLUDE_WORDS') );
+    $words = array_filter($words, function($value) use ($excluded_words) {
+        if( $value != '' && !in_array( $value, $excluded_words ))
         {
             return trim( $value, '-' );
         }
