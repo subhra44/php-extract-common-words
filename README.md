@@ -1,0 +1,1 @@
+# php-extract-common-words
