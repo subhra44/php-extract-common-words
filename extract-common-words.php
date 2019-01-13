@@ -14,11 +14,18 @@ if (!$con = new mysqli(getenv('DB_HOST'), getenv('DB_USER'), getenv('DB_PASSWORD
 
 function crawl_page($url)
 {
+    static $seen = [];
+    // Check if the URL has been already crawled
+    if ( isset($seen[$url]) || count($seen) == getenv('MAX_URL_CRAWL') ) {
+        return;
+    }
+    $seen[$url] = true;
     echo "Crawling " . $url."\n";
     
     global $con;
     $hrefs = [];
 
+    // cURL request
     $ch = curl_init($url);
     curl_setopt ($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, TRUE);
@@ -29,6 +36,7 @@ function crawl_page($url)
     $html = substr($response, $header_size);
     curl_close($ch);
 
+    // Ignore all content-type except text/html
     if( substr( $curl_info['content_type'], 0, 10 ) !== "text/html;" )
     {
         return;
@@ -42,7 +50,17 @@ function crawl_page($url)
         $r->item(0)->parentNode->removeChild($r->item(0));
     }
     $html = $dom->saveHTML();
+
+    // Get all href links
+    $tags = $dom->getElementsByTagName('a');
+    foreach ($tags as $tag) {
+        $href = pretty_url( $tag->getAttribute('href') );
+        if( $href != '' && !is_external_url($href) && !in_array($href, $hrefs) ) {
+            $hrefs[] =  $href;
+        }
+    }
     
+    // Convert HTML to plain text
     $plainText = $dom->textContent;
     $plainText = clean( $plainText );
     $words = explode( ' ', $plainText );
@@ -54,13 +72,13 @@ function crawl_page($url)
         }
     });
     $words = array_count_values( $words );
-    //print_r( $words );
 
     foreach($words as $k => $v)
     {
         $data[] = "('" . $con->real_escape_string($k) . "',". $v . ")";
     }
-	
+    
+    // Insert/update the word count
 	if(!empty($data))
 	{
 		$sql = "INSERT INTO word_count (word, word_count) VALUES " . implode(',', $data) . " ON DUPLICATE KEY UPDATE word_count = word_count + VALUES(word_count)";
@@ -69,6 +87,56 @@ function crawl_page($url)
             echo "Error: " . $sql . "\n" . $con->error;
         }
     }
+
+    // If additional links are present, crawl them
+    if( !empty($hrefs) )
+    {
+        foreach ($hrefs as $key => $href) {
+            crawl_page( $href );
+        }
+    }
+}
+
+// Function to generate a valid URL for cURL
+function pretty_url( $url = '' )
+{
+    $url = preg_replace('/\?.*/', '', $url);
+    $url = preg_replace('/\#.*/', '', $url);
+    $url = rtrim( trim( $url ), '/' );
+
+    if( $url == '' || $url == '#' || $url == '/' )
+    {
+        $url = '';
+    }
+    else if( substr( $url, 0, 1 ) === "/" )
+    {
+        $url = getenv('URL').$url;
+    }
+    else if( substr( $url, 0, 7 ) === "mailto:" )
+    {
+        $url = '';
+    }
+    else if( substr( $url, 0, 4 ) !== "http" )
+    {
+        $url = getenv('URL').$url;
+    }
+
+    $url = preg_replace("/^http:/i", "https:", $url); // Convert all http:// links to https://
+
+    return $url;
+}
+
+// Function to check if an URL is an external URL
+function is_external_url($url)
+{
+    $main_url = parse_url( getenv('URL') );
+    $url_to_check = parse_url( $url );
+    if( $main_url['host'] != $url_to_check['host'] )
+    {
+        return true;
+    }
+
+    return false;
 }
 
 // Function to clean a string
