@@ -15,5 +15,5 @@ php /path/to/the/project/extract-common-words.php
 
 **System Requirements**
 
-[PHP](https://secure.php.net/) version 7.2 or higher.<br>
+[PHP](https://secure.php.net/) version 7.1 or higher.<br>
 [MySQL](https://www.mysql.com/) version 5.6 or higher.
