@@ -3,7 +3,8 @@ PHP Extract Common Words is script written on PHP. It allows one to scrape the c
 **Instructions**
 1. Clone the repository
 2. Create a db and import the db.sql file
-3. Go to the project folder and install the dependencies using [composer](https://getcomposer.org/)
+3. Copy the .env.example file to .env and adjust the variables
+4. Go to the project folder and install the dependencies using [composer](https://getcomposer.org/)
 ```
 composer install
 ```
